@@ -23,67 +23,169 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include "inc/hw_memmap.h"
-#include "inc/tm4c123gh6pm.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom_map.h"
-#include "driverlib/uart.h"
-#include "driverlib/gpio.h"
-#include "driverlib/sysctl.h"
+#include <stdio.h>
+#include <driverlib/eeprom.h>
+#include <driverlib/interrupt.h>
+#include <driverlib/pin_map.h>
+#include <driverlib/rom_map.h>
+#include <driverlib/uart.h>
+#include <driverlib/gpio.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/timer.h>
+#include <inc/hw_memmap.h>
+#include <inc/tm4c123gh6pm.h>
+#include <utils/uartstdio.h>
+#include <utils/ustdlib.h>
+#include <drivers/enc28j60/enc28j60.h>
+#include <drivers/enc28j60/initHw.h>
+#include <config.h>
+#include <init_hw.h>
+#include <isr.h>
+#include <led.h>
+#include <print.h>
+#include <shell.h>
+#include <timers.h>
+#include <wait.h>
 
-#include "utils/uartstdio.h"
-#include "drivers/enc28j60/enc28j60.h"
-#include "drivers/enc28j60/initHw.h"
-#include "drivers/enc28j60/led.h"
-#include "wait.h"
+uint8_t *udpData;
+uint8_t rxData[128];
+uint8_t txData[128];
+PacketType_t packetType;
+volatile uint8_t packetReady = 0;
+uint32_t printTimerPeriod;
+uint32_t ethernetCheckTimerPeriod;
+volatile uint8_t displayRx = 1;
+volatile uint8_t displayRaw = 0;
+
+char commandBuffer[64];
+uint8_t commandBufferSize = 64;
+uint8_t commandBufferIndex = 0;
 
 //-----------------------------------------------------------------------------
 // Subroutines
 //-----------------------------------------------------------------------------
 
-void ConfigureUSBUART0(void)
-{
-    //
-    // Enable Peripheral Clocks
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-
-    //
-    // Enable pin PA0 for UART0 U0RX
-    //
-    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
-    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0);
-
-    //
-    // Enable pin PA1 for UART0 U0TX
-    //
-    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_1);
-
-    //
-    // Use the internal 16MHz oscillator as the UART0 clock source.
-    //
-    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
-
-    //
-    // Initialize the UART for console I/O.
-    //
-    UARTStdioConfig(0, 115200, 16000000);
+uint8_t command_ipconfig(uint8_t argc, char **argv) {
+    uint8_t* ip = etherGetIpAddress();
+    uint8_t* sub = etherGetSubnetMask();
+    uint8_t* gw = etherGetGatewayIpAddress();
+    UARTprintf("IP:\t\t\t%d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+    UARTprintf("Subnet Mask:\t\t%d.%d.%d.%d\n", sub[0], sub[1], sub[2], sub[3]);
+    UARTprintf("Gateway:\t\t%d.%d.%d.%d\n", gw[0], gw[1], gw[2], gw[3]);
 }
 
-void printPacket(uint8_t* data, uint8_t length)
-{
-    uint8_t i = 0;
-    UARTprintf("----------Packet----------\n");
-    for (; i < length-4; i++)
-    {
-        UARTprintf("%02x ", data[i+4]);
-        if ((i+1) % 16 == 0)
-            UARTCharPut(UART0_BASE, '\n');
+uint8_t command_setIP(uint8_t argc, char **argv) {
+    uint8_t ip[4];
+    uint8_t validIP = parseIPv4(*argv, ip);
+    if(validIP) {
+        etherSetIpAddress(ip[0], ip[1], ip[2], ip[3]);
+        UARTprintf("IP set!\n");
+    } else {
+        UARTprintf("Invalid IP!\n");
     }
-    UARTCharPut(UART0_BASE, '\n');
-    UARTprintf("--------------------------\n");
+}
+
+uint8_t command_setSubnetMask(uint8_t argc, char **argv) {
+    uint8_t sub[4];
+    uint8_t validSubnetMask = parseIPv4(*argv, sub);
+    if(validSubnetMask) {
+        etherSetSubnetMask(sub[0], sub[1], sub[2], sub[3]);
+        UARTprintf("Subnet mask set!\n");
+    } else {
+        UARTprintf("Invalid subnet mask!\n");
+    }
+}
+
+uint8_t command_setGateway(uint8_t argc, char **argv) {
+    uint8_t ip[4];
+    uint8_t validIP = parseIPv4(*argv, ip);
+    if(validIP) {
+        etherSetGateway(ip[0], ip[1], ip[2], ip[3]);
+        UARTprintf("Gateway set!\n");
+    } else {
+        UARTprintf("Invalid IP!\n");
+    }
+}
+
+uint8_t command_ping(uint8_t argc, char **argv)
+{
+    uint8_t ip[4];
+    parseIPv4(*argv, ip);
+    ARPEntry *arpEntry = getARPEntry(ip);
+
+    uint8_t *selfIP = etherGetIpAddress();
+    uint8_t sameSubnet = etherIsSameSubnet(selfIP, ip);
+//    UARTprintf("%d.%d.%d.%d %s in same subnet as %d.%d.%d.%d\n", ip[0], ip[1],
+//               ip[2], ip[3], sameSubnet ? "is" : "is not", selfIP[0], selfIP[1],
+//               selfIP[2], selfIP[3]);
+
+    if (arpEntry)
+    {
+        etherSendPingReq(arpEntry->mac, ip);
+    }
+    else
+    {
+
+        if (!sameSubnet)
+        {
+            ARPEntry *gatewayARPEntry = getARPEntry(etherGetGatewayIpAddress());
+
+            if (gatewayARPEntry)
+            {
+                etherSendPingReq(gatewayARPEntry->mac, ip);
+            }
+            else
+            {
+                UARTprintf("Cannot find network gateway!\n");
+            }
+        }
+
+        etherSendArpReq(ip);
+    }
+    return 0;
+}
+
+uint8_t command_arp(uint8_t argc, char **argv)
+{
+
+    // If there is an argument (IP) included
+    if (*argv[0])
+    {
+        uint8_t ip[4];
+        uint8_t validIP = parseIPv4(*argv, ip);
+
+        if (validIP)
+        {
+            ARPEntry *arpEntry = getARPEntry(ip);
+            if (arpEntry)
+            {
+                UARTprintf("IP: %d.%d.%d.%d\t\tMAC: %2x:%2x:%2x:%2x:%2x:%2x\n",
+                           arpEntry->ip[0], arpEntry->ip[1], arpEntry->ip[2],
+                           arpEntry->ip[3], arpEntry->mac[0], arpEntry->mac[1],
+                           arpEntry->mac[2], arpEntry->mac[3], arpEntry->mac[4],
+                           arpEntry->mac[5]);
+            }
+            else
+            {
+                UARTprintf("IP: %d.%d.%d.%d\t\tMAC: Unknown\n", ip[0], ip[1],
+                           ip[2], ip[3]);
+                etherSendArpReq(ip);
+            }
+        } else {
+            UARTprintf("Invalid IP!\n");
+        }
+    }
+
+    // If there is no argument included
+    else
+    {
+        printARPTable(arpTable, getARPTableCount());
+    }
+    return 0;
+}
+
+uint8_t command_raw(uint8_t argc, char **argv) {
+    displayRaw = !displayRaw;
 }
 
 //-----------------------------------------------------------------------------
@@ -93,83 +195,73 @@ void printPacket(uint8_t* data, uint8_t length)
 void main(void)
 {
 
+    // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
+    SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN
+            | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
+
+    etherInitHW();
+
     ConfigureUSBUART0();
+    ConfigureUSBUART0Interrupt();
     UARTprintf("UART0 configured!\n");
 
-    uint8_t *udpData;
-    uint8_t data[128];
+    ConfigureEEPROM();
+    EEPROMRead((uint32_t*)etherGetIpAddress(), 0x00, 4);
+    EEPROMRead((uint32_t*)etherGetSubnetMask(), 0x10, 4);
+    EEPROMRead((uint32_t*)etherGetGatewayIpAddress(), 0x20, 4);
+    UARTprintf("Loaded IP configuration from EEPROM!\n");
 
-    // init controller
-    initHw();
+    EEPROMRead((uint32_t*)arpTable, 0x30, ARP_TBL_SIZE * sizeof(ARPEntry));
+    EEPROMRead((uint32_t*)&arpTableCount, 0x40, sizeof(uint32_t));
+    UARTprintf("Loaded ARP table from EEPROM!\n");
 
-    // init ethernet interface
-    etherInit(ETHER_UNICAST | ETHER_BROADCAST | ETHER_HALFDUPLEX);
-    etherSetIpAddress(192, 168, 1, 100);    //
+    printTimerPeriod = SysCtlClockGet() / 100;
+    ethernetCheckTimerPeriod = SysCtlClockGet() / 100;
 
-    // flash phy leds
-    etherWritePhy(PHLCON, 0x0880);
-    RED_LED = 1;
-    waitMicrosecond(500000);
-    etherWritePhy(PHLCON, 0x0990);
-    RED_LED = 0;
-    waitMicrosecond(500000);
+    ConfigureTimers();
+    ResetTimer0(printTimerPeriod);
+    ResetTimer1(ethernetCheckTimerPeriod);
+    ResetTimer2(0xFFFFFFFF);
+    ResetTimer3(6*SysCtlClockGet());
+    ConfigureTimerInterrupts();
+    UARTprintf("Timers configured!\n");
 
-    // message loop
+    // Initialize the Ethernet interface
+    etherInit(ETHER_UNICAST | ETHER_BROADCAST | ETHER_HALFDUPLEX, rxData,
+              txData, BUF_SIZE);
+    UARTprintf("Ethernet initialized!\n");
+
+//    etherSetIpAddress(192, 168, 1, 100);
+//    etherSetGateway(192, 168, 1, 1);
+//    etherSetSubnetMask(255, 255, 255, 0);
+//    UARTprintf("IP Set!\n");
+
+    command_t ping_cmd = { "ping", command_ping, "Pings an IPv4 address." };
+    command_t arp_cmd = { "arp", command_arp,
+                          "Looks up the IPv4 address of a MAC address." };
+    command_t raw_cmd = { "raw", command_raw, "Toggles raw printing of Ethernet frames." };
+    command_t ipconfig_cmd = { "ipconfig", command_ipconfig, "Displays IPv4 configuration." };
+    command_t setip_cmd = { "setip", command_setIP, "Sets IPv4 address." };
+    command_t setsub_cmd = { "setsub", command_setSubnetMask, "Sets IPv4 subnet." };
+    command_t setgw_cmd = { "setgw", command_setGateway, "Sets IPv4 gateway." };
+
+    addCommand(ping_cmd);
+    addCommand(arp_cmd);
+    addCommand(raw_cmd);
+    addCommand(ipconfig_cmd);
+    addCommand(setip_cmd);
+    addCommand(setsub_cmd);
+    addCommand(setgw_cmd);
+
+    IntMasterEnable();
+    UARTprintf("Interrupts enabled!\n");
+
+    TimerEnable(TIMER0_BASE, TIMER_A);                          // Start TIMER0A
+    TimerEnable(TIMER1_BASE, TIMER_A); // Start the timer which handles packet checking
+    TimerEnable(TIMER3_BASE, TIMER_A);
+    UARTprintf("System running...\n");
+
     while (1)
-    {
-        if (etherKbhit())
-        {
-            if (etherIsOverflow())
-            {
-                RED_LED = 1;
-                waitMicrosecond(100000);
-                RED_LED = 0;
-            }
-            // get packet
-            uint8_t packetSize = etherGetPacket(data, 128);
-            printPacket(data, packetSize);
-
-            // handle arp request
-            if (etherIsArp(data))
-            {
-                etherSendArpResp(data);
-                RED_LED = 1;
-                GREEN_LED = 1;
-                waitMicrosecond(50000);
-                RED_LED = 0;
-                GREEN_LED = 0;
-            }
-            // handle ip datagram
-            if (etherIsIp(data))
-            {
-                if (etherIsIpUnicast(data))
-                {
-                    // handle icmp ping request
-                    if (etherIsPingReq(data))
-                    {
-                        etherSendPingResp(data);
-                        RED_LED = 1;
-                        BLUE_LED = 1;
-                        waitMicrosecond(50000);
-                        RED_LED = 0;
-                        BLUE_LED = 0;
-                    }
-                    // handle udp datagram
-                    if (etherIsUdp(data))
-                    {
-                        udpData = etherGetUdpData(data);
-                        if (udpData[0] == '1')
-                            GREEN_LED = 1;
-                        if (udpData[0] == '0')
-                            GREEN_LED = 0;
-                        etherSendUdpData(data, (uint8_t*) "Received", 9);
-                        BLUE_LED = 1;
-                        waitMicrosecond(100000);
-                        BLUE_LED = 0;
-                    }
-                }
-            }
-        }
-    }
+        ;
 
 }

@@ -5,10 +5,8 @@
 
 
 
-void initHw()
+void etherInitHW()
 {
-    // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
-    SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
 
     // Set GPIO ports to use APB (not needed since default configuration -- for clarity)
     // Note UART on port A must use APB

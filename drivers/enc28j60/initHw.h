@@ -7,7 +7,7 @@
 #define INITHW_H_
 
 
-void initHw();
+void etherInitHW();
 
 
 
