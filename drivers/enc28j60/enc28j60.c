@@ -38,6 +38,8 @@ uint32_t bufferSize;
 
 Packet rxPacket, txPacket;
 
+uint32_t packetCount = 0;
+
 //-----------------------------------------------------------------------------
 // Subroutines
 //-----------------------------------------------------------------------------
@@ -178,6 +180,14 @@ uint8_t etherReadMem()
 void etherReadMemStop()
 {
     etherCsOff();
+}
+
+uint32_t etherGetPacketCount() {
+    return packetCount;
+}
+
+void etherIncrementPacketCount(void) {
+    packetCount++;
 }
 
 // Initializes Ethernet device
@@ -762,6 +772,7 @@ void addARPEntry(ARPEntry entry) {
             arpTable[arpTableCount++] = entry;
         }
     }
+    etherConfigHasChanged = 1;
 }
 
 // Gets pointer to UDP payload of frame
@@ -874,6 +885,7 @@ void etherSetIpAddress(uint8_t a, uint8_t b,  uint8_t c, uint8_t d)
     ipv4Address[1] = b;
     ipv4Address[2] = c;
     ipv4Address[3] = d;
+    etherConfigHasChanged = 1;
 }
 
 void etherSetGateway(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
@@ -881,6 +893,7 @@ void etherSetGateway(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
     gatewayIPv4Address[1] = b;
     gatewayIPv4Address[2] = c;
     gatewayIPv4Address[3] = d;
+    etherConfigHasChanged = 1;
 }
 
 void etherSetSubnetMask(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
@@ -888,6 +901,7 @@ void etherSetSubnetMask(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
     subnetMask[1] = b;
     subnetMask[2] = c;
     subnetMask[3] = d;
+    etherConfigHasChanged = 1;
 }
 
 uint8_t etherIsSameSubnet(uint8_t ip1[4], uint8_t ip2[4]) {

@@ -219,6 +219,9 @@ typedef struct ARPEntry {
 #define ARP_TBL_SIZE   16
 ARPEntry arpTable[ARP_TBL_SIZE];
 uint8_t arpTableCount;
+uint64_t etherStartTimestamp;
+
+uint8_t etherConfigHasChanged;
 
 // ------------------------------------------------------------------------------
 //  Functions
@@ -232,6 +235,8 @@ uint16_t etherGetPacket(uint8_t data[], uint16_t max_size);
 uint8_t etherIsOverflow();
 bool etherPutPacket(uint8_t data[], uint16_t size);
 
+uint32_t etherGetPacketCount(void);
+void etherIncrementPacketCount(void);
 uint8_t getARPTableCount(void);
 
 uint8_t* etherGetIpAddress();

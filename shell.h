@@ -24,5 +24,6 @@ uint8_t parseIPv4(char*, uint8_t*);
 
 void addCommand(command_t);
 uint8_t parseCommand(char*, command_t*, char**);
+uint8_t getCommandCount();
 
 #endif /* SHELL_H_ */

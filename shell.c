@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define NUM_CMD 8
+#define NUM_CMD 16
 
-uint8_t cmdCount = 1;
+uint8_t cmdCount = 0;
 
 uint8_t parseIPv4(char* input, uint8_t* out)
 {
@@ -46,4 +46,7 @@ uint8_t parseCommand(char* input, command_t* out, char** argv)
     return 1;
 }
 
+uint8_t getCommandCount() {
+    return cmdCount;
+}
 

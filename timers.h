@@ -14,5 +14,6 @@ void ResetTimer0(uint32_t);
 void ResetTimer1(uint32_t);
 void ResetTimer2(uint32_t);
 void ResetTimer3(uint32_t);
+void ResetTimer4();
 
 #endif /* TIMERS_H_ */

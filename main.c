@@ -188,6 +188,25 @@ uint8_t command_raw(uint8_t argc, char **argv) {
     displayRaw = !displayRaw;
 }
 
+uint8_t command_help(uint8_t argc, char **argv) {
+    UARTprintf("Press CTRL+S to open the shell\n");
+    UARTprintf("Press CTRL+C to terminate output.\n");
+    UARTprintf("Press CTRL+B to restart output.\n");
+    for(int i=0; i<getCommandCount(); i++) {
+        command_t cmd = command_table[i];
+        UARTprintf("%16s - %s\n", cmd.command_str, cmd.command_desc);
+    }
+}
+
+uint8_t command_uptime(uint8_t argc, char **argv) {
+    if(etherStartTimestamp) {
+        uint32_t uptime = (uint32_t)((TimerValueGet64(WTIMER5_BASE) - etherStartTimestamp)/SysCtlClockGet());
+        UARTprintf("Uptime: %u sec\n", uptime);
+    } else {
+        UARTprintf("No network activity yet!\n");
+    }
+}
+
 //-----------------------------------------------------------------------------
 // Main
 //-----------------------------------------------------------------------------
@@ -223,6 +242,7 @@ void main(void)
     ResetTimer1(ethernetCheckTimerPeriod);
     ResetTimer2(0xFFFFFFFF);
     ResetTimer3(6*SysCtlClockGet());
+    ResetWTimer5();
     ConfigureTimerInterrupts();
     UARTprintf("Timers configured!\n");
 
@@ -244,6 +264,8 @@ void main(void)
     command_t setip_cmd = { "setip", command_setIP, "Sets IPv4 address." };
     command_t setsub_cmd = { "setsub", command_setSubnetMask, "Sets IPv4 subnet." };
     command_t setgw_cmd = { "setgw", command_setGateway, "Sets IPv4 gateway." };
+    command_t help_cmd = { "help", command_help, "Prints available commands." };
+    command_t uptime_cmd = { "uptime", command_uptime, "Reports time that Tiva has been on the network." };
 
     addCommand(ping_cmd);
     addCommand(arp_cmd);
@@ -252,6 +274,8 @@ void main(void)
     addCommand(setip_cmd);
     addCommand(setsub_cmd);
     addCommand(setgw_cmd);
+    addCommand(help_cmd);
+    addCommand(uptime_cmd);
 
     IntMasterEnable();
     UARTprintf("Interrupts enabled!\n");
@@ -259,7 +283,13 @@ void main(void)
     TimerEnable(TIMER0_BASE, TIMER_A);                          // Start TIMER0A
     TimerEnable(TIMER1_BASE, TIMER_A); // Start the timer which handles packet checking
     TimerEnable(TIMER3_BASE, TIMER_A);
+    TimerEnable(WTIMER5_BASE, TIMER_A);
     UARTprintf("System running...\n");
+    UARTprintf("Press CTRL+S to open the shell\n");
+    UARTprintf("Press CTRL+C to terminate output.\n");
+    UARTprintf("Press CTRL+B to restart output.\n");
+    UARTprintf("Type 'help' for list of commands\n");
+//    command_help(0, 0);
 
     while (1)
         ;

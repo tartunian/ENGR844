@@ -26,7 +26,7 @@ extern PacketType_t packetType;
 extern volatile uint8_t packetReady;
 extern uint32_t printTimerPeriod;
 extern uint32_t ethernetCheckTimerPeriod;
-extern uint8_t* udpData;
+extern uint8_t *udpData;
 extern uint8_t rxData[];
 extern volatile uint8_t displayRx;
 extern volatile uint8_t displayRaw;
@@ -40,6 +40,14 @@ uint8_t checkEthernet(void)
     // Check if an Ethernet frame has been received
     if (etherKbhit())
     {
+
+        // Increment the internal packet count
+        etherIncrementPacketCount();
+
+        if (etherGetPacketCount() == 1)
+        {
+            etherStartTimestamp = TimerValueGet64(WTIMER5_BASE);
+        }
 
         // Check if there was an overflow problem and wait for it to clear
         if (etherIsOverflow())
@@ -106,6 +114,7 @@ uint8_t checkEthernet(void)
     }
 }
 
+// Handler for the print timer
 void TIMER0_Handler(void)
 {
     TIMER0_ICR_R |= 0x01;                               // Clear the TIMER0 flag
@@ -114,7 +123,8 @@ void TIMER0_Handler(void)
     if (packetReady && displayRx)
     {
 
-        if(displayRaw) {
+        if (displayRaw)
+        {
             printFrame(rxData + sizeof(ENCHeader), 128);
         }
         else if (packetType & PKT_ARP)
@@ -155,6 +165,7 @@ void TIMER0_Handler(void)
     }
 }
 
+// Handler for the packet RX timer
 void TIMER1_Handler(void)
 {
     TIMER1_ICR_R |= 0x01;                               // Clear the TIMER1 flag
@@ -163,6 +174,7 @@ void TIMER1_Handler(void)
     TimerEnable(TIMER1_BASE, TIMER_A);                        // Reenable TIMER1
 }
 
+// Handler for the LEDduration timer
 void TIMER2_Handler(void)
 {
     TIMER2_ICR_R |= 0x01;                               // Clear the TIMER2 flag
@@ -170,20 +182,30 @@ void TIMER2_Handler(void)
     GPIO_PORTF_DATA_R &= ~(RED_LED_PIN | GREEN_LED_PIN | BLUE_LED_PIN);
 }
 
+// Handler for the EEPROM save timer
 void TIMER3_Handler(void)
 {
     TIMER3_ICR_R |= 0x01;                               // Clear the TIMER3 flag
 
-    // Check against eeprom value before writing
+    if (etherConfigHasChanged)
+    {
 
-    uint32_t writeStatus = 0;
-    writeStatus = EEPROMProgram((uint32_t*)etherGetIpAddress(), 0x00, sizeof(uint32_t));
-    writeStatus = EEPROMProgram((uint32_t*)etherGetSubnetMask(), 0x10, sizeof(uint32_t));
-    writeStatus = EEPROMProgram((uint32_t*)etherGetGatewayIpAddress(), 0x20, sizeof(uint32_t));
-    writeStatus = EEPROMProgram((uint32_t*)arpTable, 0x30, ARP_TBL_SIZE * sizeof(ARPEntry));
-    writeStatus = EEPROMProgram((uint32_t*)&arpTableCount, 0x40, sizeof(uint32_t));
+        uint32_t writeStatus = 0;
+        writeStatus = EEPROMProgram((uint32_t*) etherGetIpAddress(), 0x00,
+                                    sizeof(uint32_t));
+        writeStatus = EEPROMProgram((uint32_t*) etherGetSubnetMask(), 0x10,
+                                    sizeof(uint32_t));
+        writeStatus = EEPROMProgram((uint32_t*) etherGetGatewayIpAddress(),
+                                    0x20, sizeof(uint32_t));
+        writeStatus = EEPROMProgram((uint32_t*) arpTable, 0x30,
+                                    ARP_TBL_SIZE * sizeof(ARPEntry));
+        writeStatus = EEPROMProgram((uint32_t*) &arpTableCount, 0x40,
+                                    sizeof(uint32_t));
+        etherConfigHasChanged = 0;
+        flashLED(0, 1, 0, SysCtlClockGet() / 10);
+        UARTprintf("Configuration changes saved to EEPROM.\n");
 
-    flashLED(0, 1, 0, SysCtlClockGet() / 10);
+    }
 }
 
 void UART0_Handler(void)
@@ -194,7 +216,7 @@ void UART0_Handler(void)
 
     // CTRL+B, CTRL+C and Enter should have immediate effect with no delay
     // All other key presses should delay momentarily
-    if (c != 2 && c != 3 && c!= 13)
+    if (c != 2 && c != 3 && c != 13)
     {
         ResetTimer0(2 * SysCtlClockGet()); // Reset the periodic timer to delay for five seconds while user is typing
         TimerEnable(TIMER0_BASE, TIMER_A);
@@ -234,8 +256,6 @@ void UART0_Handler(void)
             UARTprintf("Invalid command!\n");
         }
 
-
-
         commandBufferIndex = 0;
         commandBuffer[commandBufferIndex] = '\0';
 //        UARTprintf("\n");
@@ -251,7 +271,8 @@ void UART0_Handler(void)
         commandBuffer[commandBufferIndex] = '\0';
     }
 
-    if(c != 13) {
+    if (c != 13)
+    {
         UARTprintf("\r                                ");
         UARTprintf("\rshell> %s", commandBuffer);
     }

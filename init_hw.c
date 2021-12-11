@@ -35,6 +35,7 @@ void ConfigureTimers(void) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);  // Enable the clock to TIMER1
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);  // Enable the clock to TIMER2
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);  // Enable the clock to TIMER3
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER5);
 }
 
 void ConfigureTimerInterrupts(void)

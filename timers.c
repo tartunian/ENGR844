@@ -47,3 +47,11 @@ void ResetTimer3(uint32_t period)
     TimerLoadSet(TIMER3_BASE, TIMER_A, period - 1);            // Set the period
     IntPendClear(INT_TIMER3A); // Acknowledge/clear any pending calls? might not be necessary
 }
+
+
+// Configure the uptime timer
+void ResetWTimer5()
+{
+    TimerDisable(WTIMER5_BASE, TIMER_A);      // Disable WTIMER5 while configuring
+    TimerConfigure(WTIMER5_BASE,TIMER_CFG_PERIODIC_UP);
+}
