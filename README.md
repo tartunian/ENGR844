@@ -22,10 +22,12 @@ Please see our [full project report here.](ENGR844-TivaNetworkTesterReport.pdf)
  
  # Hardware configuration:
  
- MOSI (SSI2Tx) on PB7		(ST)
- MISO (SSI2Rx) on PB6		(SO)
- SCLK (SSI2Clk) on PB4
- ~CS connected to PB1
+<ul>
+ <li>MOSI (SSI2Tx) on PB7		(ST)</li>
+ <li>MISO (SSI2Rx) on PB6		(SO)</li>
+ <li>SCLK (SSI2Clk) on PB4</li>
+ <li>~CS connected to PB1</li>
+</ul>
 
 # Files
 
