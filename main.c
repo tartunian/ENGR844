@@ -15,13 +15,22 @@
 // TI utilities
 #include <utils/uartstdio.h>
 
+// Driver headers
 #include "embedded_cli.h"
 #include "embedded_cli_port.h"
+#include "drivers/enc28j60/initHw.h"
+#include "drivers/enc28j60/enc28j60.h"
 
 // Application headers
 #include "app_config.h"
 #include "periph_config.h"
 #include "periph_timers.h"
+
+
+#define ETHER_BUF_SIZE        128
+uint8_t rxData[ETHER_BUF_SIZE];
+uint8_t txData[ETHER_BUF_SIZE];
+
 
 void main() {
 
@@ -41,10 +50,9 @@ void main() {
     UARTprintf("Timers configured!\n");
 #endif
 
-    MAP_IntMasterEnable();
-#ifdef APP_DEBUG
-    UARTprintf("Interrupts enabled!\n");
-#endif
+    etherInitHW();
+    etherInit(ETHER_UNICAST | ETHER_BROADCAST | ETHER_HALFDUPLEX, rxData, txData, ETHER_BUF_SIZE);
+        UARTprintf("Ethernet initialized!\n");
 
     uint32_t cliCreated = cliInit();
     if(cliCreated == CLI_CREATE_FAIL)
@@ -52,6 +60,12 @@ void main() {
 
     // Start all timers
     periphEnableTimers();
+    UARTprintf("Timers started!\n");
+
+    MAP_IntMasterEnable();
+#ifdef APP_DEBUG
+    UARTprintf("Interrupts enabled!\n");
+#endif
 
     while(1) {
         embeddedCliProcess(cliObject);

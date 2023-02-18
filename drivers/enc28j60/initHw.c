@@ -1,8 +1,15 @@
+// Standard C headers
+#include <stdint.h>
+#include <stdbool.h>
+
+
+#include <inc/hw_memmap.h>
+
+#include <driverlib/interrupt.h>
+#include <driverlib/ssi.h>
+#include <driverlib/rom_map.h>
+
 #include "initHw.h"
-
-
-// Initialize Hardware
-
 
 
 void etherInitHW()
@@ -44,5 +51,10 @@ void etherInitHW()
     SSI2_CPSR_R = 40;                                // set bit rate to 1 MHz (if SR=0 in CR0)
     SSI2_CR0_R = SSI_CR0_FRF_MOTO | SSI_CR0_DSS_8;   // set SR=0, mode 0 (SPH=0, SPO=0), 8-bit
     SSI2_CR1_R |= SSI_CR1_SSE;                       // turn on SSI2
+
+    MAP_IntEnable(INT_SSI2);
+    MAP_SSIIntEnable(SSI2_BASE, SSI_RXFF);
+
+
 }
 
