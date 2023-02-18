@@ -56,9 +56,7 @@ extern uint32_t __STACK_TOP;
 //*****************************************************************************
 extern void UART0_Handler(void);
 extern void TIMER0_Handler(void);
-extern void TIMER1_Handler(void);
-extern void TIMER2_Handler(void);
-extern void TIMER3_Handler(void);
+extern void SSI2_Handler(void);
 
 //*****************************************************************************
 //
@@ -108,9 +106,9 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Watchdog timer
     TIMER0_Handler,                         // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
-    TIMER1_Handler,                         // Timer 1 subtimer A
+    IntDefaultHandler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
-    TIMER2_Handler,                         // Timer 2 subtimer A
+    IntDefaultHandler,                      // Timer 2 subtimer A
     IntDefaultHandler,                      // Timer 2 subtimer B
     IntDefaultHandler,                      // Analog Comparator 0
     IntDefaultHandler,                      // Analog Comparator 1
@@ -122,7 +120,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port H
     IntDefaultHandler,                      // UART2 Rx and Tx
     IntDefaultHandler,                      // SSI1 Rx and Tx
-    TIMER3_Handler,                         // Timer 3 subtimer A
+    IntDefaultHandler,                      // Timer 3 subtimer A
     IntDefaultHandler,                      // Timer 3 subtimer B
     IntDefaultHandler,                      // I2C1 Master and Slave
     IntDefaultHandler,                      // Quadrature Encoder 1
@@ -144,7 +142,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port J
     IntDefaultHandler,                      // GPIO Port K
     IntDefaultHandler,                      // GPIO Port L
-    IntDefaultHandler,                      // SSI2 Rx and Tx
+    SSI2_Handler,                           // SSI2 Rx and Tx
     IntDefaultHandler,                      // SSI3 Rx and Tx
     IntDefaultHandler,                      // UART3 Rx and Tx
     IntDefaultHandler,                      // UART4 Rx and Tx
