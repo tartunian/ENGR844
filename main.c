@@ -57,10 +57,6 @@ uint32_t ethernetCheckTimerPeriod;
 volatile uint8_t displayRx = 1;
 volatile uint8_t displayRaw = 0;
 
-char commandBuffer[64];
-uint8_t commandBufferSize = 64;
-uint8_t commandBufferIndex = 0;
-
 //-----------------------------------------------------------------------------
 // Subroutines
 //-----------------------------------------------------------------------------
@@ -115,12 +111,13 @@ uint8_t command_ping(uint8_t argc, char **argv)
 
     uint8_t *selfIP = etherGetIpAddress();
     uint8_t sameSubnet = etherIsSameSubnet(selfIP, ip);
-//    UARTprintf("%d.%d.%d.%d %s in same subnet as %d.%d.%d.%d\n", ip[0], ip[1],
-//               ip[2], ip[3], sameSubnet ? "is" : "is not", selfIP[0], selfIP[1],
-//               selfIP[2], selfIP[3]);
+    UARTprintf("%d.%d.%d.%d %s in same subnet as %d.%d.%d.%d\n", ip[0], ip[1],
+               ip[2], ip[3], sameSubnet ? "is" : "is not", selfIP[0], selfIP[1],
+               selfIP[2], selfIP[3]);
 
     if (arpEntry)
     {
+        UARTprintf("Sending ping directly.\n");
         etherSendPingReq(arpEntry->mac, ip);
     }
     else
@@ -132,6 +129,7 @@ uint8_t command_ping(uint8_t argc, char **argv)
 
             if (gatewayARPEntry)
             {
+                UARTprintf("Forwarding ping to gateway.\n");
                 etherSendPingReq(gatewayARPEntry->mac, ip);
             }
             else
@@ -139,6 +137,8 @@ uint8_t command_ping(uint8_t argc, char **argv)
                 UARTprintf("Cannot find network gateway!\n");
             }
         }
+
+        UARTprintf("Sending arp request for IP.\n");
 
         etherSendArpReq(ip);
     }
@@ -214,9 +214,8 @@ uint8_t command_uptime(uint8_t argc, char **argv) {
 void main(void)
 {
 
-    // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
-    SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN
-            | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
+    // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 80 MHz
+    SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
 
     etherInitHW();
 
@@ -232,6 +231,9 @@ void main(void)
 
     EEPROMRead((uint32_t*)arpTable, 0x30, ARP_TBL_SIZE * sizeof(ARPEntry));
     EEPROMRead((uint32_t*)&arpTableCount, 0x40, sizeof(uint32_t));
+
+    arpTableCount = 0;
+
     UARTprintf("Loaded ARP table from EEPROM!\n");
 
     printTimerPeriod = SysCtlClockGet() / 100;
@@ -250,6 +252,8 @@ void main(void)
     etherInit(ETHER_UNICAST | ETHER_BROADCAST | ETHER_HALFDUPLEX, rxData,
               txData, BUF_SIZE);
     UARTprintf("Ethernet initialized!\n");
+
+//    shellInit();
 
 //    etherSetIpAddress(192, 168, 1, 100);
 //    etherSetGateway(192, 168, 1, 1);
@@ -291,7 +295,6 @@ void main(void)
     UARTprintf("Type 'help' for list of commands\n");
 //    command_help(0, 0);
 
-    while (1)
-        ;
+    while (1);
 
 }

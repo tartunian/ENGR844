@@ -27,7 +27,7 @@ uint8_t nextPacketLsb = 0x00;
 uint8_t nextPacketMsb = 0x00;
 uint8_t sequenceId = 1;
 uint32_t sum;
-volatile uint8_t macAddress[6] = {0x54,0x49,0x56,0x41,0x2d,0x43};//{0xcc,0xcc,0xcc,0xcc,0xcc,0xcc};
+volatile uint8_t macAddress[6] = {0xcc,0xcc,0xcc,0xcc,0xcc,0xcc}; // {0x54,0x49,0x56,0x41,0x2d,0x43};
 volatile uint8_t ipv4Address[4];
 volatile uint8_t gatewayIPv4Address[4];
 volatile uint8_t subnetMask[4];
@@ -445,7 +445,6 @@ void castIP(uint8_t* data, Packet* headers) {
 void castICMP(uint8_t* data, Packet* headers) {
     castEthernet(data, headers);
     castIP(data, headers);
-//    headers->icmpHeader = (ICMPHeader*)((uint8_t*)headers->ipHeader + ((headers->ipHeader->rev_size & 0xF) * 4));
     headers->icmpHeader = (ICMPHeader*)(data + sizeof(ENCHeader) + sizeof(EthernetHeader) + sizeof(IPHeader));
 }
 

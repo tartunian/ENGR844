@@ -11,7 +11,9 @@
 #include <print.h>
 #include <shell.h>
 #include <timers.h>
+#include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 #include <driverlib/eeprom.h>
 #include <driverlib/gpio.h>
 #include <driverlib/timer.h>
@@ -30,9 +32,6 @@ extern uint8_t *udpData;
 extern uint8_t rxData[];
 extern volatile uint8_t displayRx;
 extern volatile uint8_t displayRaw;
-extern char commandBuffer[];
-extern uint8_t commandBufferSize;
-extern uint8_t commandBufferIndex;
 
 uint8_t checkEthernet(void)
 {
@@ -235,7 +234,7 @@ void UART0_Handler(void)
     }
 
     // If buffer is full or Enter was pressed
-    else if (commandBufferIndex == commandBufferSize - 1 || c == 13)
+    else if (commandBufferIndex == CMD_BUF_SIZE - 1 || (c == 13 && commandBufferIndex > 0))
     {
 
         UARTCharPut(UART0_BASE, '\n');
@@ -260,6 +259,8 @@ void UART0_Handler(void)
         commandBuffer[commandBufferIndex] = '\0';
 //        UARTprintf("\n");
     }
+
+    // Backspace
     else if (c == 8 && commandBufferIndex > 0)
     {
         commandBufferIndex--;
@@ -278,3 +279,62 @@ void UART0_Handler(void)
     }
 
 }
+
+
+//#define SHELL_HIST_SIZE 4
+//
+//char* shellBufferWrite;
+//char* shellHistory[SHELL_HIST_SIZE];
+//char** shellHistoryWrite;
+//char* shellCommandStart;
+//char** shellHistoryBrowse;
+//
+//void shellInit()
+//{
+//    shellBufferWrite = shellBuffer;
+//    shellCommandStart = shellBuffer;
+//
+//    shellHistoryWrite = &shellHistory[0];
+//    shellHistoryBrowse = &shellHistory[0];
+//}
+//
+//#define shellBufferNextWrite &shellBuffer[(shellBufferWrite - shellBuffer + 1) % CMD_BUF_SIZE]
+//#define shellHistoryNextWrite &shellHistory[(shellHistoryWrite - shellHistory + 1) % SHELL_HIST_SIZE]
+//#define shellHistoryBrowsePrev &shellHistory[(shellHistoryBrowse - shellHistory - 1) % SHELL_HIST_SIZE]
+//
+//void UART0_Handler(void)
+//{
+//    *shellBufferWrite = UARTCharGetNonBlocking(UART0_BASE);
+//
+//    // Check for UP_ARROW
+//    if(strncmp(shellBufferWrite-2, UP_ARROW, 3) == 0)
+//    {
+//        // Remove the UP_ARROW bytes
+//        memset(shellBufferWrite-2, 0, 3);
+//        shellBufferWrite -= 2;
+//        shellHistoryBrowse = shellHistoryBrowsePrev;
+//        UARTprintf(*shellHistoryBrowse);
+//        UARTprintf("\n");
+//    }
+//
+//    // Enter (CR)
+//    else if(*shellBufferWrite == '\x0d')
+//    {
+//        // Terminate the command
+//        *shellBufferWrite = '\x00';
+//
+//        // Store start of command into history and increment history write pointer
+//        *shellHistoryWrite = shellCommandStart;
+//        shellHistoryBrowse = shellHistoryWrite;
+//        shellHistoryWrite = shellHistoryNextWrite;
+//
+//        // Set next command start to next buffer write location
+//        shellCommandStart = shellBufferNextWrite;
+//
+//    }
+//
+//    // Change buffer write location
+//    shellBufferWrite = shellBufferNextWrite;
+//
+//    // printCharBuf(shellBuffer, "%x ", CMD_BUF_SIZE);
+//}
