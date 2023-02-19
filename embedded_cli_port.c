@@ -19,8 +19,34 @@
 // TI utilities
 #include <utils/uartstdio.h>
 
+// Driver headers
+#include "embedded_cli.h"
+#include "embedded_cli_port.h"
+
 // Application headers
-#include <embedded_cli_port.h>
+#include "ip/ip_utils.h"
+
+
+void cliWriteChar(EmbeddedCli *cli, char c) {
+    UARTCharPut(UART0_BASE, c);
+}
+
+void cliEcho(EmbeddedCli *cli, char *args, void *context) {
+    if (embeddedCliGetTokenCount(args) == 0)
+        ;
+    else
+        UARTprintf("%s\n", embeddedCliGetToken(args, 1));
+}
+
+void cliPing(EmbeddedCli *cli, char *args, void *context) {
+    if (embeddedCliGetTokenCount(args) == 0) {
+        UARTprintf("Usage: ping [ipv4 address]\n");
+    } else {
+        uint8_t ip[4];
+        parseIPv4(*args, ip);
+        UARTprintf("%s\n", embeddedCliGetToken(args, 1));
+    }
+}
 
 
 
@@ -41,23 +67,23 @@ uint32_t cliInit() {
 
     cliObject->writeChar = cliWriteChar;
 
-    CliCommandBinding b;
-    b.binding = cliEcho;
-    b.context = 0;
-    b.help = "Echoes the user input";
-    b.name = "echo";
-    b.tokenizeArgs = true;
+    CliCommandBinding echoBinding;
+    echoBinding.binding = cliEcho;
+    echoBinding.context = 0;
+    echoBinding.help = "Echoes the user input";
+    echoBinding.name = "echo";
+    echoBinding.tokenizeArgs = true;
 
-    embeddedCliAddBinding(cliObject, b);
+    CliCommandBinding pingBinding;
+    pingBinding.binding = cliPing;
+    pingBinding.context = 0;
+    pingBinding.help = "Pings an ipv4 address";
+    pingBinding.name = "ping";
+    pingBinding.tokenizeArgs = true;
+
+    embeddedCliAddBinding(cliObject, echoBinding);
+    embeddedCliAddBinding(cliObject, pingBinding);
 
     UARTprintf("CLI initialized!\n");
     return CLI_CREATE_SUCCESS;
-}
-
-void cliWriteChar(EmbeddedCli *cli, char c) {
-    UARTCharPut(UART0_BASE, c);
-}
-
-void cliEcho(EmbeddedCli *cli, char *args, void *context) {
-    UARTprintf("echo %s\n", args[0]);
 }

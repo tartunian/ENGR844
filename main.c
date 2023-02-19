@@ -25,11 +25,8 @@
 #include "app_config.h"
 #include "periph_config.h"
 #include "periph_timers.h"
+#include "ether.h"
 
-
-#define ETHER_BUF_SIZE        128
-uint8_t rxData[ETHER_BUF_SIZE];
-uint8_t txData[ETHER_BUF_SIZE];
 
 
 void main() {
@@ -44,7 +41,7 @@ void main() {
 #endif
 
     periphConfigTimers();
-    periphResetTimer0(5*MAP_SysCtlClockGet());
+    periphResetTimer0(5 * SysCtlClockGet());
     periphConfigTimerInterrupts();
 #ifdef APP_DEBUG
     UARTprintf("Timers configured!\n");

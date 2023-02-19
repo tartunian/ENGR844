@@ -14,15 +14,20 @@
 #include <inc/tm4c123gh6pm.h>
 
 #include <driverlib/gpio.h>
+#include <driverlib/rom_map.h>
+#include <driverlib/ssi.h>
 #include <driverlib/timer.h>
 #include <driverlib/uart.h>
 #include <driverlib/sysctl.h>
-#include <driverlib/rom_map.h>
 
 #include <utils/uartstdio.h>
 
+// Driver headers
 #include "embedded_cli.h"
 #include "embedded_cli_port.h"
+
+#include "ether.h"
+
 
 void UART0_Handler(void) {
     char c = UARTCharGet(UART0_BASE);
@@ -31,11 +36,12 @@ void UART0_Handler(void) {
 
 
 void TIMER0_Handler(void) {
-    MAP_TimerIntClear(TIMER0_BASE, TIMER_A);
-//    UARTprintf("TIMER0\n");
+    TimerIntClear(TIMER0_BASE, TIMER_A);
+    UARTprintf("TIMER0\n");
+    checkEthernet(TimerValueGet(TIMER0_BASE, TIMER_A));
 }
 
 void SSI2_Handler(void) {
-    UARTprintf("New SSI2 data");
-    MAP_SSIIntClear(SSI2_BASE);
+    UARTprintf("New SSI2 data\n");
+    SSIIntClear(SSI2_BASE, 0xff);
 }

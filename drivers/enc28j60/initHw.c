@@ -52,8 +52,8 @@ void etherInitHW()
     SSI2_CR0_R = SSI_CR0_FRF_MOTO | SSI_CR0_DSS_8;   // set SR=0, mode 0 (SPH=0, SPO=0), 8-bit
     SSI2_CR1_R |= SSI_CR1_SSE;                       // turn on SSI2
 
-    MAP_IntEnable(INT_SSI2);
-    MAP_SSIIntEnable(SSI2_BASE, SSI_RXFF);
+//    MAP_IntEnable(INT_SSI2);
+//    MAP_SSIIntEnable(SSI2_BASE, SSI_RXFF);
 
 
 }
